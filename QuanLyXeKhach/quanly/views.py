@@ -10,52 +10,18 @@ from .serializers import (UserSerializer,
                         ChuyenXeSerializer,
                         DatVeSerializer,
                         CreateCommentSerializer,
-                        CommentSerializer)
+                        CommentSerializer,
+                        AuthChuyenXeSerializer)
 
 
 # Create your views here.
-def index(request):
-    return HttpResponse("Hello word")
 
 
 class UserViewSet(viewsets.ViewSet,
-                  generics.ListAPIView,
-                  generics.CreateAPIView,
-                  generics.UpdateAPIView,
-                  generics.DestroyAPIView,
-                  generics.RetrieveAPIView
-                  ):
+                  generics.CreateAPIView,):
     queryset = User.objects.filter(is_active=True)
     serializer_class = UserSerializer
 
-    @action(methods=['get'], detail=False, url_path='current-user')
-    def get_current_user(self, request):
-        return Response(self.serializer_class(request.user).data, status=status.HTTP_200_OK)
-
-    def get_permissions(self):
-        if self.action == 'create' or self.action == 'list':
-            permission_classes = [permissions.AllowAny]
-            return [permission() for permission in permission_classes]
-        if self.action == 'current-user':
-            return [permissions.IsAuthenticated()]
-        if self.action in ['update', 'destroy', 'retrieve']:
-            return [RolePermisson()]
-
-        return [permissions.IsAuthenticated()]
-
-    def get_queryset(self):
-        query = self.queryset
-
-        vt = self.request.query_params.get('vt')
-        if vt:
-            if int(vt) == 2 or int(vt) == 3:
-                query = query.filter(vai_tro_id=vt)
-                kw = self.request.query_params.get('kw')
-                if kw:
-                    query = query.filter(username__icontains=kw)
-            else:
-                query = User.objects.none()
-        return query
 
 
 # admin only
@@ -95,6 +61,11 @@ class ChuyenXeViewset(viewsets.ViewSet,
                      generics.RetrieveAPIView):
     queryset = ChuyenXe.objects.filter(active=True)
     serializer_class = ChuyenXeSerializer
+
+    def get_serializer_class(self):
+        if self.request.user.is_authenticated:
+            return AuthChuyenXeSerializer
+        return ChuyenXeSerializer
 
     def get_queryset(self):
         query = self.queryset
@@ -138,17 +109,21 @@ class ChuyenXeViewset(viewsets.ViewSet,
 
     @action(methods=['post'], url_path='rating', detail=True)
     def rating(self, request, pk):
-        if 'rate' not in request.data:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+        # if 'rate' not in request.data:
+        #     return Response(status=status.HTTP_400_BAD_REQUEST)
 
         chuyenxe = self.get_object()
         user = request.user
 
         r, _ = Rating.objects.get_or_create(chuyenxe=chuyenxe, user=user)
-        r.rate = int(request.data.get('rate'))
-        r.save()
+        r.rate = request.data.get('rate', 0)
+        try:
+            r.save()
+        except:
+            return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        return Response(status=status.HTTP_201_CREATED)
+        return Response(data=AuthChuyenXeSerializer(chuyenxe, context={'request': request}).data,
+                        status=status.HTTP_200_OK)
 
 
 class DatVeViewset  (viewsets.ViewSet,
@@ -159,7 +134,7 @@ class DatVeViewset  (viewsets.ViewSet,
 
     def get_permissions(self):
         if self.action == 'create':
-            return [permissions.AllowAny()]
+            return [permissions.IsAuthenticated()]
         else:
             if self.action in ['retrieve']:
                 return [permissions.IsAuthenticated()]

@@ -18,30 +18,28 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
-    hinh_anh = serializers.SerializerMethodField(source='hinh_anh')
+    hinh_anh = serializers.ImageField(required=False)
 
     def get_hinh_anh(self, obj):
         request = self.context['request']
-        if obj.avatar and not obj.avatar.name.startswith("/static"):
-            path = '/static/%s' % obj.avatar.name
+        if obj.hinh_anh and not obj.hinh_anh.name.startswith("/static"):
+            path = '/static/%s' % obj.hinh_anh.name
 
             return request.build_absolute_uri(path)
 
-    # lien_ket_anh = serializers.SerializerMethodField(source='hinh_anh')
-    #
-    # def get_lien_ket_anh(self, obj):
-    #     request = self.context['request']
-    #     if obj.hinh_anh and not obj.hinh_anh.name.startswith('/static'):
-    #         path = '/static/%s' % obj.hinh_anh.name
-    #         return request.build_absolute_uri(path)
-
     class Meta:
         model = User
-        fields = ['username', 'password', 'first_name', 'last_name', 'email', 'hinh_anh', 'vai_tro']
+        fields = ['id', 'username', 'password', 'email', 'hinh_anh']
         extra_kwargs = {
             'password': {
                 'write_only': True
-             }
+            },
+            'hinh_anh_path': {
+                'read_only': True
+            },
+            'hinh_anh': {
+                'write_only': True
+            }
         }
 
 
@@ -67,6 +65,27 @@ class DatVeSerializer(ModelSerializer):
     class Meta:
         model = DatVe
         fields = ['id', 'nguoi_dat', 'chuyen_xe', 'so_luong_ve']
+
+
+class AuthChuyenXeSerializer(ChuyenXeSerializer):
+    like = serializers.SerializerMethodField()
+    rating = serializers.SerializerMethodField()
+
+    def get_like(self, chuyenxe):
+        request = self.context.get('request')
+        if request:
+            return chuyenxe.like_set.filter(user=request.user, active=True).exists()
+
+    def get_rating(self, chuyenxe):
+        request = self.context.get('request')
+        if request:
+            r = chuyenxe.rating_set.filter(user=request.user).first()
+            if r:
+                return r.rate
+
+    class Meta:
+        model = ChuyenXe
+        fields = ChuyenXeSerializer.Meta.fields + ['like', 'rating']
 
 
 class CreateCommentSerializer(serializers.ModelSerializer):

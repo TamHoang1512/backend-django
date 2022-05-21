@@ -12,6 +12,5 @@ route.register(prefix='comments', viewset=views.CommentViewSet, basename='commen
 # route.register("thongke", views.ThongKeViewSet, basename='thongke')
 
 urlpatterns = [
-    path('index/', views.index),
     path('', include(route.urls)),
 ]

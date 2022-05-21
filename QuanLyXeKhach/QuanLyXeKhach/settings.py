@@ -47,7 +47,7 @@ REST_FRAMEWORK = {
 MEDIA_ROOT = '%s/quanly/static/' % BASE_DIR
 CORS_ALLOW_ALL_ORIGINS = True
 
-STATIC_URL = '/static/'
+STATIC_URL = 'static/'
 INTERNAL_IPS = [
     '127.0.0.1',
 ]
